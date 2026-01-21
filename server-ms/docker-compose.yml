@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - PORT=8000
+      - VENDOR_SERVICE_URL=http://vendor-service:3001
+      - RFP_SERVICE_URL=http://rfp-service:3002
+    depends_on:
+      - vendor-service
+      - rfp-service
+
+  vendor-service:
+    build: ./vendor-service
+    ports:
+      - "3001:3001"
+    env_file: .env
+    environment:
+      - PORT=3001
+      # Override the default DATABASE_URL from .env with the specific one if needed, 
+      # but here we can just map it if we use slightly different names in .env
+      # Or since vendor-service expects DATABASE_URL, we rely on the one in .env
+
+    
+  rfp-service:
+    build: ./rfp-service
+    ports:
+      - "3002:3002"
+    env_file: .env
+    environment:
+      - PORT=3002
+      - AI_SERVICE_URL=http://ai-service:3003
+      - EMAIL_SERVICE_URL=http://email-service:3004 
+    depends_on:
+      - ai-service
+      - email-service
+
+  ai-service:
+    build: ./ai-service
+    ports:
+      - "3003:3003"
+    env_file: .env
+    environment:
+      - PORT=3003
+
+  email-service:
+    build: ./email-service
+    ports:
+      - "3004:3004"
+    env_file: .env
+    environment:
+      - PORT=3004
+
+  nginx:
+    image: nginx:1.24-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    depends_on:
+      - api-gateway
+    # command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  # certbot:
+  #   image: certbot/certbot
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./certbot/conf:/etc/letsencrypt
+  #     - ./certbot/www:/var/www/certbot
+  #   entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"

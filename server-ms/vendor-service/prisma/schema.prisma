@@ -1,0 +1,42 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Vendor {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String   @unique
+  tags      String?  // Comma separated tags
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  proposals Proposal[]
+}
+
+model Rfp {
+  id             String     @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  description    String     // Original User Prompt or Summary
+  structuredData String     // JSON string of requirements
+  status         String     @default("draft") // draft, sent, closed
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  proposals      Proposal[]
+}
+
+model Proposal {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  rfpId              String   @db.ObjectId
+  vendorId           String   @db.ObjectId
+  content            String // Raw email body
+  structuredAnalysis String // JSON extracted by AI
+  score              Float?
+  createdAt          DateTime @default(now())
+  
+  rfp    Rfp    @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+}
